@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs (lib/ is committed — it is the published package output)
+dist/
+build/
+**/build/
+**/DerivedData/
+**/bin/
+**/obj/
+
+# iOS
+**/Pods/
+**/Podfile.lock
+**/build/
+**/*.xcworkspace
+**/*.xcodeproj/project.xcworkspace
+**/*.xcodeproj/xcuserdata
+**/main.jsbundle
+
+# Android
+**/.gradle/
+**/.cxx/
+**/build/
+android/local.properties
+**/local.properties
+android/GeneratedPluginRegistrant.java
+**/*.iml
+**/.idea/
+.idea/
+.gradle/
+
+# Logs
+*.log
+**/build_log*.txt
+devguard_logs.txt
+firestore_logs.txt
+pod_install_verbose.txt
+crash_log.txt
+bundle_error.log
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.xcode.env.local
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# DevGuard specific
+inspect_pods*.rb
+simulator_screenshot*.png
+xcodebuild*.log
+build_log*.txt
