@@ -52,11 +52,14 @@ export class DeviceTokenService {
     return this.cachedToken;
   }
 
-  /** Persists a registration token using Keychain/Keystore when available. */
+  /**
+   * Persists a registration token received from the server.
+   * Uses hardware-backed Keychain/Keystore when available (parity with Flutter's flutter_secure_storage).
+   */
   public async saveToken(token: string, useEnclave: boolean = false) {
     let finalToken = token;
     if (useEnclave) {
-      // Simulated enclave: reverse and prefix
+      // Simulated Enclave: Reverse and prefix (parity with Flutter)
       finalToken = `se:${token.split('').reverse().join('')}`;
     }
 

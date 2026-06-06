@@ -53,7 +53,11 @@ export class CacheService {
     }
   }
 
-  /** Last remote-wipe nonce executed on this device, or null. */
+  /**
+   * Returns the last remote-wipe nonce this client has executed, or null.
+   * Stored separately from the response cache so it survives a cache wipe
+   * (parity with Flutter's nonce persistence).
+   */
   static async getLastWipeNonce(projectId: string): Promise<number | null> {
     try {
       const credentials = await Keychain.getGenericPassword({ service: this.WIPE_SERVICE });

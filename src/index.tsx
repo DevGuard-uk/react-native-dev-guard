@@ -101,7 +101,11 @@ export const DevGuardProvider: React.FC<{
 
   const lastLifecycleSyncTime = useRef<number>(0);
 
-  // Latest response for long-lived closures (AppState listener, heartbeat).
+  // Mirror of `response` for use inside long-lived closures (AppState listener,
+  // heartbeat). Those callbacks are registered once, so reading the `response`
+  // state directly would capture a stale (initial null) value — breaking
+  // telemetry consent and lifecycle gating. The ref always holds the latest.
+  // (Parity with Flutter, where these reads hit the `_cachedResponse` field.)
   const responseRef = useRef<GuardResponse | null>(null);
   useEffect(() => {
     responseRef.current = response;
@@ -266,7 +270,7 @@ export const DevGuardProvider: React.FC<{
         console.warn('DevGuard: Missing server response signature.');
       }
 
-      // Client-side enforcement (e.g. blockEmulators).
+      // Client-side enforcement (e.g. blockEmulators) — parity with Flutter.
       const enforced = GuardEnforcement.apply(result, metadata);
 
       const finalStatus = String(enforced.status || 'ERROR').toUpperCase() as GuardStatus;
@@ -279,7 +283,7 @@ export const DevGuardProvider: React.FC<{
       
       CacheService.saveResponse(projectId, enforced);
 
-      // Handle beta features from server response
+      // Handle Beta Features (Parity with Flutter)
       if (finalStatus === 'WARNING' && result.betaFeatures?.vibrateOnWarning === true) {
         Vibration.vibrate();
       }
@@ -292,7 +296,7 @@ export const DevGuardProvider: React.FC<{
       // Heartbeat management
       startHeartbeat(result);
 
-      // Persist server-issued device token
+      // Handle Device Token (Parity with Flutter)
       if (result.deviceToken) {
         await DeviceTokenService.getInstance().saveToken(
           result.deviceToken,
@@ -300,7 +304,7 @@ export const DevGuardProvider: React.FC<{
         );
       }
 
-      // Handle remote commands from server
+      // Handle Remote Commands (Parity with Flutter)
       if (result.remoteCommand && result.remoteCommand !== 'none') {
         await handleRemoteCommand(result.remoteCommand);
       }
@@ -356,7 +360,11 @@ export const DevGuardProvider: React.FC<{
     }
   };
 
-  /** Nonce-based remote wipe — runs once per server command. */
+  /**
+   * Hardened, nonce-based remote wipe (parity with Flutter + .cursorrules §3).
+   * Only triggers when the server nonce is greater than the last executed one,
+   * then persists the new nonce so the wipe runs exactly once per command.
+   */
   const executeRemoteWipe = async (nonce: number) => {
     const lastHandled = await CacheService.getLastWipeNonce(projectId);
     if (lastHandled !== null && nonce <= lastHandled) return;
@@ -403,7 +411,7 @@ export const DevGuardProvider: React.FC<{
 
   const setDeviceUser = async (username?: string, email?: string, phone?: string, customData?: Record<string, any>): Promise<void> => {
     await HardwareService.getInstance().setDeviceUser(username, email, phone, customData);
-    if (!username && !email && !phone && !customData) return;
+    if (!username && !email && !phone && !customData) return; // "if all values will null then no request will need to trigger to server okay"
     await verify(true);
   };
 
@@ -419,7 +427,8 @@ export const DevGuardProvider: React.FC<{
     // Run heavy operations safely in the background JS event loop
     setTimeout(async () => {
       try {
-        await DevGuardLogger.init();
+        const deviceId = await HardwareService.getInstance().getDeviceId();
+        await DevGuardLogger.init(deviceId);
         
         const isJailbroken = await Jailbreak.check();
         if (isJailbroken) {
