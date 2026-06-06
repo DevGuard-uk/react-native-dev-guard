@@ -1,0 +1,30 @@
+# Dev-only (consumers use compiled lib/)
+src/
+example/
+tsconfig.json
+
+# Dependencies & env
+node_modules/
+**/.env
+**/.env.*
+
+# Android build artifacts (defense-in-depth; files[] is the primary filter)
+**/.cxx/
+**/.gradle/
+android/build/
+android/local.properties
+android/.settings/
+
+# iOS build artifacts
+ios/build/
+ios/Pods/
+**/*.xcworkspace
+**/*.xcuserdata
+
+# General build / IDE noise
+**/build/
+**/.idea/
+**/*.iml
+**/DerivedData/
+**/*.log
+.DS_Store

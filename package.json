@@ -21,9 +21,12 @@
   "types": "lib/index.d.ts",
   "files": [
     "lib",
-    "android",
-    "ios",
-    "cpp"
+    "cpp",
+    "ios/DevGuard.h",
+    "ios/DevGuard.mm",
+    "android/build.gradle",
+    "android/src",
+    "react-native-dev-guard.podspec"
   ],
   "scripts": {
     "clean": "rimraf lib",
@@ -58,6 +61,16 @@
     "react": ">=18",
     "react-native": ">=0.76",
     "react-native-device-info": "*",
-    "react-native-keychain": "*"
+    "react-native-geolocation-service": "*",
+    "react-native-keychain": "*",
+    "react-native-permissions": "*"
+  },
+  "peerDependenciesMeta": {
+    "react-native-geolocation-service": {
+      "optional": true
+    },
+    "react-native-permissions": {
+      "optional": true
+    }
   }
 }

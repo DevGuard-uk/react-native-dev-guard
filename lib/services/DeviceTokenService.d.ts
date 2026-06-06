@@ -10,7 +10,10 @@ export declare class DeviceTokenService {
      * Reads from Keychain/Keystore if available, otherwise from in-memory cache.
      */
     getToken(): Promise<string | null>;
-    /** Persists a registration token using Keychain/Keystore when available. */
+    /**
+     * Persists a registration token received from the server.
+     * Uses hardware-backed Keychain/Keystore when available (parity with Flutter's flutter_secure_storage).
+     */
     saveToken(token: string, useEnclave?: boolean): Promise<void>;
     /**
      * Removes the registration token. Only called on explicit admin revocation.

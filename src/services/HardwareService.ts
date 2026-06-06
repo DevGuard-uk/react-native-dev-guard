@@ -1,5 +1,5 @@
 import DeviceInfo from 'react-native-device-info';
-import { Platform } from 'react-native';
+import { PermissionsAndroid, Platform } from 'react-native';
 import * as Keychain from 'react-native-keychain';
 import CryptoJS from 'crypto-js';
 
@@ -58,7 +58,11 @@ export class HardwareService {
     }
   }
 
-  /** Clears stored device-user identity (username, email, phone, customData). */
+  /**
+   * Clears all stored device-user identity (username/email/phone/customData).
+   * Used by the hardened remote wipe (parity with Flutter's
+   * SecureStorageService.deleteAllDeviceUserKeys).
+   */
   public async clearDeviceUser(): Promise<void> {
     try {
       await Keychain.resetGenericPassword({ service: 'devguard.user.service' });
@@ -193,6 +197,73 @@ export class HardwareService {
       // Ignore individual metric failure.
     }
 
+    const location = await this.getLocationPassive();
+    if (location) {
+      out.location = location;
+    }
+
     return out;
+  }
+
+  /**
+   * Collects GPS only if permission is already granted — never prompts during sync.
+   *
+   * Uses a cached position (low accuracy, high maximumAge) to avoid waking the GPS
+   * radio. Denied or unavailable permission returns null silently — it must not
+   * pollute the error vault.
+   */
+  private async getLocationPassive(): Promise<string | null> {
+    if (Platform.OS !== 'android' && Platform.OS !== 'ios') return null;
+    if (!(await this.isLocationPermissionGranted())) return null;
+
+    try {
+      // Optional peer: host app installs react-native-geolocation-service for GPS telemetry.
+      const Geolocation = require('react-native-geolocation-service').default;
+      return await new Promise<string | null>((resolve) => {
+        Geolocation.getCurrentPosition(
+          (position: { coords: { latitude: number; longitude: number } }) => {
+            const { latitude, longitude } = position.coords;
+            resolve(`${latitude.toFixed(4)},${longitude.toFixed(4)}`);
+          },
+          () => resolve(null),
+          {
+            enableHighAccuracy: false,
+            maximumAge: 86_400_000,
+            timeout: 5_000,
+          },
+        );
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  private async isLocationPermissionGranted(): Promise<boolean> {
+    if (Platform.OS === 'android') {
+      try {
+        const fine = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        );
+        const coarse = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+        );
+        return fine || coarse;
+      } catch {
+        return false;
+      }
+    }
+
+    if (Platform.OS === 'ios') {
+      try {
+        // Optional peer: react-native-permissions (check only — never request).
+        const { check, PERMISSIONS, RESULTS } = require('react-native-permissions');
+        const status = await check(PERMISSIONS.IOS.LOCATION_WHEN_IN_USE);
+        return status === RESULTS.GRANTED || status === RESULTS.LIMITED;
+      } catch {
+        return false;
+      }
+    }
+
+    return false;
   }
 }

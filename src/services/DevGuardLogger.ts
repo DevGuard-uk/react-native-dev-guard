@@ -1,16 +1,24 @@
+import CryptoJS from 'crypto-js';
 import { CrashLogService, CrashLogModel } from 'react-native-vault-logger';
+
+function deriveVaultKeyMaterial(deviceId: string, salt: string): string {
+  const hex = CryptoJS.SHA256(`${deviceId}_${salt}`).toString(CryptoJS.enc.Hex);
+  return CryptoJS.enc.Hex.parse(hex).toString(CryptoJS.enc.Latin1);
+}
 
 export class DevGuardLogger {
   static showConsoleLogs = false;
   private static initialized = false;
   private static infoLogs: CrashLogModel[] = [];
 
-  static async init() {
+  static async init(deviceId: string) {
     if (this.initialized) return;
     try {
+      const encryptionKey = deriveVaultKeyMaterial(deviceId, 'dg_vault_key_v1');
+      const encryptionIV = deriveVaultKeyMaterial(deviceId, 'dg_vault_iv_v1').substring(0, 16);
       await CrashLogService.init({
-        encryptionKey: 'REDACTED_LEGACY_VAULT_KEY',
-        encryptionIV: 'REDACTED_LEGACY_VAULT_IV',
+        encryptionKey,
+        encryptionIV,
         maxLogCount: 1000,
       });
       this.initialized = true;
