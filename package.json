@@ -1,9 +1,9 @@
 {
   "name": "react-native-dev-guard",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "DevGuard protection for React Native apps",
   "license": "MIT",
-  "author": "arsarsars1",
+  "author": "DevGuard-uk",
   "homepage": "https://github.com/DevGuard-uk/react-native-dev-guard",
   "repository": {
     "type": "git",
@@ -26,7 +26,8 @@
     "ios/DevGuard.mm",
     "android/build.gradle",
     "android/src",
-    "react-native-dev-guard.podspec"
+    "react-native-dev-guard.podspec",
+    "screenshots"
   ],
   "scripts": {
     "clean": "rimraf lib",

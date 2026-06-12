@@ -35,9 +35,9 @@ const AppContent = () => {
   const handleSetUser = async () => {
     try {
       await setDeviceUser('example_user', 'rn@example.com', '+1987654321', { framework: 'react-native' });
-      Alert.alert('Success', 'Device user associated successfully.');
+      Alert.alert('Success', 'User registered for portal tracking.');
     } catch (e) {
-      Alert.alert('Error', 'Failed to set device user.');
+      Alert.alert('Error', 'Failed to register user.');
     }
   };
 
@@ -68,7 +68,7 @@ const AppContent = () => {
           The lock screen is now automatically managed by the library.
         </Text>
         <View style={{ marginTop: 30 }}>
-          <Button title="Set Device User" onPress={handleSetUser} />
+          <Button title="Set User" onPress={handleSetUser} />
         </View>
       </View>
     </SafeAreaView>
@@ -81,7 +81,7 @@ export default function App() {
       <SafeAreaProvider>
         {/* Portal integrations must also pass secret (Settings → Master Secret):
             secret="YOUR_UNIQUE_SECRET" */}
-        <DevGuardProvider projectId="dev_guard_839714" failSafe="open">
+        <DevGuardProvider projectId="your_project_id" secret="YOUR_MASTER_SECRET" failSafe="open">
           <AppContent />
         </DevGuardProvider>
       </SafeAreaProvider>
