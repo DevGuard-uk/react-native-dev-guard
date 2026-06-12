@@ -74,3 +74,8 @@ inspect_pods*.rb
 simulator_screenshot*.png
 xcodebuild*.log
 build_log*.txt
+scratch/
+example/ios/GoogleService-Info.plist
+example/android/app/google-services.json
+**/*serviceAccount*.json
+**/*firebase-adminsdk*.json
