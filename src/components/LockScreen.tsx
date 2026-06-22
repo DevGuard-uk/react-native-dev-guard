@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  Linking, 
-  KeyboardAvoidingView, 
+import React, { useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Linking,
+  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Dimensions,
-  Alert
+  Alert,
+  Image,
+  ScrollView,
+  useWindowDimensions,
+  SafeAreaView,
 } from 'react-native';
 import { ContactButton } from './ContactButton';
+import { LockScreenBranding, resolveBrandingFooter } from '../types/branding';
+import { buildMailtoUrl, buildTelUrl, buildWhatsAppUrl } from '../utils/contactUrls';
+import { Obf } from '../internal/obf';
 
-const { width, height } = Dimensions.get('window');
+const UNLOCK_TOGGLE_COLOR = '#fcd34d';
 
 interface LockScreenProps {
   status: string;
@@ -25,6 +30,7 @@ interface LockScreenProps {
   contactPhone?: string;
   contactWhatsapp?: string;
   allowUnlock?: boolean;
+  branding?: LockScreenBranding | null;
   onUnlock: (key: string) => Promise<boolean>;
 }
 
@@ -35,147 +41,244 @@ export const LockScreen: React.FC<LockScreenProps> = ({
   contactEmail = '',
   contactPhone = '',
   contactWhatsapp = '',
-  allowUnlock = true,
-  onUnlock
+  allowUnlock = false,
+  branding,
+  onUnlock,
 }: LockScreenProps) => {
+  const { width, height } = useWindowDimensions();
   const [unlockKey, setUnlockKey] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showUnlock, setShowUnlock] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
 
+  const footer = useMemo(() => resolveBrandingFooter(branding), [branding]);
+
+  const blobStyles = useMemo(
+    () => ({
+      blob1: {
+        top: -width * 0.2,
+        right: -width * 0.2,
+        width: width * 0.8,
+        height: width * 0.8,
+        borderRadius: width * 0.4,
+        backgroundColor: footer.primaryColor,
+      },
+      blob2: {
+        bottom: -width * 0.1,
+        left: -width * 0.3,
+        width: width * 0.8,
+        height: width * 0.8,
+        borderRadius: width * 0.4,
+        backgroundColor: footer.accentColor,
+      },
+      blob3: {
+        top: height * 0.3,
+        right: -width * 0.4,
+        width: width * 0.6,
+        height: width * 0.6,
+        borderRadius: width * 0.3,
+        backgroundColor: footer.primaryColor,
+      },
+    }),
+    [footer.accentColor, footer.primaryColor, height, width],
+  );
+
+  const themedStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        iconContainer: {
+          backgroundColor: `${footer.primaryColor}22`,
+          borderColor: `${footer.primaryColor}44`,
+        },
+        divider: { backgroundColor: footer.primaryColor },
+      }),
+    [footer.primaryColor],
+  );
 
   const handleUnlock = async () => {
-    if (!unlockKey.trim()) return;
+    if (!unlockKey.trim() || loading) return;
     setLoading(true);
     setError(null);
     const success = await onUnlock(unlockKey.trim());
     if (!success) {
-      setError('Invalid unlock key. Please try again.');
+      setError(Obf.invalidUnlockKey);
       setLoading(false);
     }
   };
 
+  const closeUnlock = () => {
+    if (loading) return;
+    setShowUnlock(false);
+    setError(null);
+    setUnlockKey('');
+  };
+
   const openUrl = (url: string) => {
-    console.log("DevGuard: Attempting to open URL:", url);
-    Linking.openURL(url).catch(err => {
-      console.error("DevGuard: Failed to open URL:", url, err);
-      Alert.alert("Error", "Could not open the contact application. Please make sure it is installed and configured.");
+    if (!url) return;
+    Linking.openURL(url).catch((err) => {
+      console.error('DevGuard: Failed to open URL:', url, err);
+      Alert.alert('Error', Obf.contactOpenError);
     });
   };
 
+  const defaultTitle =
+    status === 'LOCKED'
+      ? 'Access Restricted'
+      : status === 'WARNING'
+        ? 'Security Warning'
+        : 'License Expired';
+
+  const whatsappUrl = buildWhatsAppUrl(contactWhatsapp);
+  const mailtoUrl = buildMailtoUrl(contactEmail);
+  const telUrl = buildTelUrl(contactPhone);
+
   return (
     <View style={styles.container}>
-      {/* Background Mesh Elements */}
-      <View pointerEvents="none" style={[styles.blob, styles.blob1]} />
-      <View pointerEvents="none" style={[styles.blob, styles.blob2]} />
-      <View pointerEvents="none" style={[styles.blob, styles.blob3]} />
+      <View pointerEvents="none" style={[styles.blob, blobStyles.blob1]} />
+      <View pointerEvents="none" style={[styles.blob, blobStyles.blob2]} />
+      <View pointerEvents="none" style={[styles.blob, blobStyles.blob3]} />
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <View style={styles.glassCard}>
-            <View style={styles.iconContainer}>
-              <Text style={styles.lockIcon}>🛡️</Text>
-            </View>
-
-            <Text style={styles.title}>
-              {(title || (
-                status === 'LOCKED' ? 'Access Restricted' : 
-                status === 'WARNING' ? 'Security Warning' :
-                'License Expired'
-              )).toUpperCase()}
-            </Text>
-            <View style={styles.divider} />
-            <Text style={styles.message}>
-              {message || 'This application has been remotely locked by the developer.'}
-            </Text>
-
-            <View style={styles.actions}>
-              {contactWhatsapp ? (
-                <ContactButton 
-                  label="WhatsApp Support" 
-                  color="#25D366" 
-                  icon="💬"
-                  onPress={() => openUrl(`https://wa.me/${contactWhatsapp.replace(/[^0-9]/g, '')}`)}
-                />
-              ) : null}
-              
-              {contactEmail ? (
-                <ContactButton 
-                  label="Email Support" 
-                  color="#D32F2F" 
-                  icon="📧"
-                  onPress={() => openUrl(`mailto:${contactEmail.trim()}`)}
-                />
-              ) : null}
-
-              {contactPhone ? (
-                <ContactButton 
-                  label="Call Support" 
-                  color="rgba(255, 255, 255, 0.1)" 
-                  icon="📞"
-                  onPress={() => openUrl(`tel:${contactPhone.replace(/[^\d+]/g, '')}`)}
-                />
-              ) : null}
-            </View>
-
-            {allowUnlock && (
-              <View style={styles.unlockSection}>
-                {!showUnlock ? (
-                  <TouchableOpacity onPress={() => setShowUnlock(true)}>
-                    <Text style={styles.unlockToggleText}>🔑 Enter Unlock Key</Text>
-                  </TouchableOpacity>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.glassCard}>
+              <View style={[styles.iconContainer, themedStyles.iconContainer]}>
+                {branding?.logoUrl && !logoFailed ? (
+                  <Image
+                    source={{ uri: branding.logoUrl }}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                    onError={() => setLogoFailed(true)}
+                  />
                 ) : (
+                  <Text style={styles.lockIcon}>🛡️</Text>
+                )}
+              </View>
+
+              <Text style={styles.title}>{(title || defaultTitle).toUpperCase()}</Text>
+              <View style={[styles.divider, themedStyles.divider]} />
+              <Text style={styles.message}>
+                {message || Obf.defaultLockMessage}
+              </Text>
+
+              {!showUnlock && (
+                <View style={styles.actions}>
+                  {whatsappUrl ? (
+                    <ContactButton
+                      label={Obf.whatsappSupport}
+                      color="#25D366"
+                      icon="💬"
+                      onPress={() => openUrl(whatsappUrl)}
+                    />
+                  ) : null}
+
+                  {mailtoUrl ? (
+                    <ContactButton
+                      label={Obf.emailSupport}
+                      color={footer.primaryColor}
+                      icon="📧"
+                      onPress={() => openUrl(mailtoUrl)}
+                    />
+                  ) : null}
+
+                  {telUrl ? (
+                    <ContactButton
+                      label={Obf.callSupport}
+                      color="rgba(255, 255, 255, 0.1)"
+                      icon="📞"
+                      onPress={() => openUrl(telUrl)}
+                    />
+                  ) : null}
+
+                  {allowUnlock ? (
+                    <TouchableOpacity
+                      style={styles.unlockToggle}
+                      onPress={() => setShowUnlock(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Enter unlock key"
+                    >
+                      <Text style={styles.unlockToggleText}>{Obf.enterUnlockKey}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              )}
+
+              {showUnlock && allowUnlock && (
+                <View style={styles.unlockSection}>
                   <View style={styles.inputContainer}>
+                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
                     <TextInput
                       style={styles.input}
-                      placeholder="License Key"
+                      placeholder={Obf.licenseKeyHint}
                       placeholderTextColor="rgba(255, 255, 255, 0.4)"
                       value={unlockKey}
                       onChangeText={setUnlockKey}
                       autoCapitalize="none"
+                      autoCorrect={false}
+                      autoFocus
                       secureTextEntry
+                      returnKeyType="done"
+                      onSubmitEditing={handleUnlock}
+                      editable={!loading}
                     />
-                    {error && <Text style={styles.errorText}>{error}</Text>}
-                    
+
                     <View style={styles.inputActions}>
-                      <TouchableOpacity 
-                        style={styles.cancelButton} 
-                        onPress={() => {
-                          setShowUnlock(false);
-                          setError(null);
-                        }}
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={closeUnlock}
+                        disabled={loading}
+                        accessibilityRole="button"
+                        accessibilityLabel="Cancel unlock"
                       >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                        <Text
+                          style={[
+                            styles.cancelButtonText,
+                            loading && styles.cancelButtonTextDisabled,
+                          ]}
+                        >
+                          {Obf.cancelLabel}
+                        </Text>
                       </TouchableOpacity>
-                      
-                      <TouchableOpacity 
-                        style={styles.unlockButton} 
+
+                      <TouchableOpacity
+                        style={[styles.unlockButton, loading && styles.unlockButtonDisabled]}
                         onPress={handleUnlock}
                         disabled={loading}
+                        accessibilityRole="button"
+                        accessibilityLabel="Unlock application"
                       >
                         {loading ? (
                           <ActivityIndicator color="#000" size="small" />
                         ) : (
-                          <Text style={styles.unlockButtonText}>Unlock Now</Text>
+                          <Text style={styles.unlockButtonText}>{Obf.unlockLabel}</Text>
                         )}
                       </TouchableOpacity>
                     </View>
                   </View>
-                )}
-              </View>
-            )}
-          </View>
+                </View>
+              )}
+            </View>
 
-          <TouchableOpacity 
-            style={styles.footer} 
-            onPress={() => openUrl('https://antssolution.com/')}
-          >
-            <Text style={styles.footerLabel}>Powered by</Text>
-            <Text style={styles.footerBrand}>ANTS SOLUTION</Text>
-          </TouchableOpacity>
+            {!footer.hidePoweredBy && (
+              <TouchableOpacity
+                style={styles.footer}
+                onPress={() => openUrl(footer.url)}
+                accessibilityRole="link"
+                accessibilityLabel={`${footer.label} ${footer.brand}`}
+              >
+                <Text style={styles.footerLabel}>{footer.label}</Text>
+                <Text style={styles.footerBrand}>{footer.brand.toUpperCase()}</Text>
+              </TouchableOpacity>
+            )}
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -190,33 +293,16 @@ const styles = StyleSheet.create({
   },
   blob: {
     position: 'absolute',
-    width: width * 0.8,
-    height: width * 0.8,
-    borderRadius: width * 0.4,
     opacity: 0.15,
-  },
-  blob1: {
-    top: -width * 0.2,
-    right: -width * 0.2,
-    backgroundColor: '#D32F2F',
-  },
-  blob2: {
-    bottom: -width * 0.1,
-    left: -width * 0.3,
-    backgroundColor: '#B71C1C',
-  },
-  blob3: {
-    top: height * 0.3,
-    right: -width * 0.4,
-    backgroundColor: '#FF5252',
-    width: width * 0.6,
-    height: width * 0.6,
   },
   safeArea: {
     flex: 1,
   },
   keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -235,12 +321,15 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(211, 47, 47, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(211, 47, 47, 0.2)',
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
   },
   lockIcon: {
     fontSize: 48,
@@ -256,7 +345,6 @@ const styles = StyleSheet.create({
   divider: {
     width: 40,
     height: 3,
-    backgroundColor: '#D32F2F',
     borderRadius: 2,
     marginBottom: 16,
   },
@@ -269,17 +357,19 @@ const styles = StyleSheet.create({
   },
   actions: {
     width: '100%',
-    marginBottom: 24,
+  },
+  unlockToggle: {
+    marginTop: 8,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  unlockToggleText: {
+    color: UNLOCK_TOGGLE_COLOR,
+    fontSize: 13,
+    fontWeight: '600',
   },
   unlockSection: {
     width: '100%',
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  unlockToggleText: {
-    color: 'rgba(255, 255, 255, 0.5)',
-    fontSize: 14,
-    fontWeight: '600',
   },
   inputContainer: {
     width: '100%',
@@ -297,7 +387,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF5252',
-    fontSize: 12,
+    fontSize: 13,
     textAlign: 'center',
   },
   inputActions: {
@@ -314,6 +404,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.4)',
     fontWeight: '600',
   },
+  cancelButtonTextDisabled: {
+    opacity: 0.4,
+  },
   unlockButton: {
     flex: 2,
     backgroundColor: '#FFF',
@@ -321,6 +414,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  unlockButtonDisabled: {
+    opacity: 0.85,
   },
   unlockButtonText: {
     color: '#000',

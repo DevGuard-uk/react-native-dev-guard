@@ -1,4 +1,5 @@
 import React from 'react';
+import { LockScreenBranding } from './types/branding';
 export type GuardStatus = 'LOCKED' | 'ACTIVE' | 'PENDING' | 'ERROR' | 'EXPIRED' | 'WARNING';
 interface GuardResponse {
     status: GuardStatus;
@@ -27,6 +28,7 @@ interface GuardResponse {
     syncPolicy?: SyncPolicy;
     /** When true, the client locks on emulators/simulators (non-physical devices). */
     blockEmulators?: boolean;
+    branding?: LockScreenBranding | null;
 }
 interface DevGuardContextType {
     status: GuardStatus;
@@ -49,4 +51,5 @@ export declare const DevGuardProvider: React.FC<{
     failSafe?: FailSafe;
 }>;
 export declare const useDevGuard: () => DevGuardContextType;
-export {};
+export type { LockScreenBranding } from './types/branding';
+export { resolveBrandingFooter } from './types/branding';

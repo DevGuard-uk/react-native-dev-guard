@@ -14,11 +14,11 @@ import { DiagnosticOverlay } from './components/DiagnosticOverlay';
 import { DevGuardLogger } from './services/DevGuardLogger';
 import { GuardEnforcement } from './services/GuardEnforcement';
 import { RemoteWipeService } from './services/RemoteWipeService';
+import { LockScreenBranding } from './types/branding';
+import { Obf } from './internal/obf';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 const { DevGuard: DevGuardNative } = NativeModules;
-
-const API_URL = 'https://api.devguard.uk/devguard';
 
 export type GuardStatus = 'LOCKED' | 'ACTIVE' | 'PENDING' | 'ERROR' | 'EXPIRED' | 'WARNING';
 
@@ -49,6 +49,7 @@ interface GuardResponse {
   syncPolicy?: SyncPolicy;
   /** When true, the client locks on emulators/simulators (non-physical devices). */
   blockEmulators?: boolean;
+  branding?: LockScreenBranding | null;
 }
 
 interface DevGuardContextType {
@@ -98,6 +99,7 @@ export const DevGuardProvider: React.FC<{
   const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
   const lastSyncTime = useRef<number>(0);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const isCompromisedRef = useRef(false);
 
   const lastLifecycleSyncTime = useRef<number>(0);
 
@@ -107,6 +109,7 @@ export const DevGuardProvider: React.FC<{
   // telemetry consent and lifecycle gating. The ref always holds the latest.
   // (Parity with Flutter, where these reads hit the `_cachedResponse` field.)
   const responseRef = useRef<GuardResponse | null>(null);
+  const verifyChainRef = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     responseRef.current = response;
   }, [response]);
@@ -160,12 +163,13 @@ export const DevGuardProvider: React.FC<{
   };
 
   const verify = async (force: boolean = false, trigger?: 'foreground' | 'background' | 'appLaunch' | 'heartbeat') => {
-    if (!shouldSync(force, trigger)) {
-      console.log('DevGuard: Sync skipped due to policy.');
-      return;
-    }
+    const run = async () => {
+      if (!shouldSync(force, trigger)) {
+        console.log(Obf.syncSkipped);
+        return;
+      }
 
-    try {
+      try {
       const hardware = HardwareService.getInstance();
       const deviceId = await hardware.getDeviceId();
       // Use the ref (not the possibly-stale closed-over `response`) so advanced
@@ -177,7 +181,7 @@ export const DevGuardProvider: React.FC<{
       // Align payload with Flutter: Metadata map is the core payload 'p'
       const payload = JSON.stringify({
         ...metadata,
-        projectId,
+        [Obf.projectId]: projectId,
         timestamp: parseInt(timestamp, 10)
       });
 
@@ -212,32 +216,32 @@ export const DevGuardProvider: React.FC<{
 
       const signature = await DevGuardNative.generateSignature(projectId, parseInt(timestamp, 10));
 
-      const fetchUrl = API_URL;
+      const fetchUrl = Obf.defaultApiUrl;
       const fetchOptions = {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-DevGuard-Signature': signature,
-          'X-DevGuard-Timestamp': timestamp,
-          'X-DevGuard-Tunnel': 'v1-gzip',
-          ...(authSecret ? { 'X-DevGuard-API-Key': authSecret } : {})
+          [Obf.contentType]: Obf.appJson,
+          [Obf.hdrSig]: signature,
+          [Obf.hdrTs]: timestamp,
+          [Obf.hdrTunnel]: Obf.tunnelV1,
+          ...(authSecret ? { [Obf.hdrApiKey]: authSecret } : {})
         },
         body: JSON.stringify({ 
-          projectId,
-          deviceId: metadata.deviceId,
-          deviceName: metadata.deviceName,
-          model: metadata.model,
-          os: metadata.os,
-          version: metadata.version,
-          isPhysicalDevice: metadata.isPhysicalDevice,
-          username: metadata.username,
-          email: metadata.email,
-          phone: metadata.phone,
-          customData: metadata.customData,
-          fingerprint: metadata.fingerprint,
-          deviceToken: metadata.deviceToken,
-          location: metadata.location,
-          p: base64Payload
+          [Obf.projectId]: projectId,
+          [Obf.deviceId]: metadata.deviceId,
+          [Obf.deviceName]: metadata.deviceName,
+          [Obf.model]: metadata.model,
+          [Obf.os]: metadata.os,
+          [Obf.version]: metadata.version,
+          [Obf.isPhysicalDevice]: metadata.isPhysicalDevice,
+          [Obf.username]: metadata.username,
+          [Obf.email]: metadata.email,
+          [Obf.phone]: metadata.phone,
+          [Obf.customData]: metadata.customData,
+          [Obf.fingerprint]: metadata.fingerprint,
+          [Obf.deviceToken]: metadata.deviceToken,
+          [Obf.location]: metadata.location,
+          [Obf.payloadField]: base64Payload
         })
       };
       
@@ -246,34 +250,45 @@ export const DevGuardProvider: React.FC<{
       const fetchResponse = await fetch(fetchUrl, fetchOptions);
 
       if (!fetchResponse.ok) {
-        throw new Error('API_UNREACHABLE');
+        throw new Error(Obf.apiUnreachable);
       }
 
       const responseText = await fetchResponse.text();
       const result = JSON.parse(responseText);
       
       // Verify Response Signature
-      const responseSig = fetchResponse.headers.get('X-DevGuard-Response-Signature');
+      const responseSig = fetchResponse.headers.get(Obf.respSig);
 
       if (responseSig) {
         const isValid = await DevGuardNative.verifyResponse(responseText, responseSig);
         if (!isValid) {
-          if (result.betaFeatures?.bypassSignature === true) {
-            console.warn('DevGuard: Response signature mismatch, but bypassSignature is ACTIVE.');
+          if (result[Obf.betaFeatures]?.[Obf.bypassSignature] === true) {
+            console.warn(Obf.invalidSigBypassLog);
           } else {
-            console.error('DevGuard: Response signature mismatch! Possible tampering detected.');
+            console.error(Obf.invalidSigLog);
+            const enforced = await GuardEnforcement.apply(
+              { ...result, status: 'LOCKED' },
+              metadata,
+              isCompromisedRef.current,
+            );
+            responseRef.current = enforced;
+            setResponse(enforced);
             setStatus('LOCKED');
             return;
           }
         }
       } else {
-        console.warn('DevGuard: Missing server response signature.');
+        console.warn(Obf.missingSigLog);
       }
 
-      // Client-side enforcement (e.g. blockEmulators) — parity with Flutter.
-      const enforced = GuardEnforcement.apply(result, metadata);
+      // Client-side enforcement (emulator / compromised) — parity with Flutter.
+      const enforced = await GuardEnforcement.apply(
+        result,
+        metadata,
+        isCompromisedRef.current,
+      );
 
-      const finalStatus = String(enforced.status || 'ERROR').toUpperCase() as GuardStatus;
+      const finalStatus = String(enforced[Obf.statusField] || 'ERROR').toUpperCase() as GuardStatus;
 
       responseRef.current = enforced; // keep ref fresh for chained/triggered syncs
       setResponse(enforced);
@@ -314,14 +329,21 @@ export const DevGuardProvider: React.FC<{
         await UsageLogger.getInstance().clearLogs();
       }
 
-    } catch (e) {
-      console.error('DevGuard Verification Failed:', e);
-      if (failSafe === 'open' && status === 'PENDING') {
-        setStatus('ACTIVE');
-      } else if (failSafe === 'closed') {
-        setStatus('LOCKED');
+      } catch (e) {
+        console.error('DevGuard Verification Failed:', e);
+        if (failSafe === 'open' && status === 'PENDING') {
+          setStatus('ACTIVE');
+        } else if (failSafe === 'closed') {
+          setStatus('LOCKED');
+        }
       }
-    }
+    };
+
+    // Always serialize verify runs — never reset the chain on force, or parallel
+    // fetches race and a stale WARNING response can overwrite LOCKED (physical E2E).
+    const chained = verifyChainRef.current.then(() => run()).catch(() => {});
+    verifyChainRef.current = chained;
+    return chained;
   };
 
   const startHeartbeat = (res: GuardResponse) => {
@@ -382,22 +404,22 @@ export const DevGuardProvider: React.FC<{
       const timestamp = Date.now().toString();
       const signature = await DevGuardNative.generateSignature(projectId, parseInt(timestamp, 10));
 
-      const payload = JSON.stringify({ projectId, providedKey: hashedKey });
+      const payload = JSON.stringify({ [Obf.projectId]: projectId, [Obf.providedKey]: hashedKey });
 
-      const fetchResponse = await fetch(`${API_URL}/unlock`, {
+      const fetchResponse = await fetch(`${Obf.defaultApiUrl}${Obf.unlockPath}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-DevGuard-Signature': signature,
-          'X-DevGuard-Timestamp': timestamp,
-          ...(authSecret ? { 'X-DevGuard-API-Key': authSecret } : {})
+          [Obf.contentType]: Obf.appJson,
+          [Obf.hdrSig]: signature,
+          [Obf.hdrTs]: timestamp,
+          ...(authSecret ? { [Obf.hdrApiKey]: authSecret } : {})
         },
         body: payload
       });
 
       if (fetchResponse.ok) {
         const text = await fetchResponse.text();
-        if (text === 'Unlocked') {
+        if (text === Obf.unlocked) {
           await verify();
           return true;
         }
@@ -431,13 +453,14 @@ export const DevGuardProvider: React.FC<{
         await DevGuardLogger.init(deviceId);
         
         const isJailbroken = await Jailbreak.check();
+        isCompromisedRef.current = isJailbroken;
         if (isJailbroken) {
-          console.warn('DevGuard Security Alert: Compromised device detected.');
-          setResponse({
-            status: 'LOCKED',
-            title: 'Security Alert',
-            message: 'This application cannot run on jailbroken or rooted devices for security reasons.',
-          } as GuardResponse);
+          const locked = await GuardEnforcement.apply(
+            { status: 'ACTIVE' },
+            { isPhysicalDevice: true },
+            true,
+          );
+          setResponse(locked as GuardResponse);
           setStatus('LOCKED');
           return;
         }
@@ -495,16 +518,22 @@ export const DevGuardProvider: React.FC<{
         />
       )}
       {autoProtect && isLocked ? (
-        <LockScreen 
-          status={status}
-          title={response?.title}
-          message={response?.message}
-          contactEmail={response?.contactEmail}
-          contactPhone={response?.contactPhone}
-          contactWhatsapp={response?.contactWhatsapp}
-          allowUnlock={response?.allowUnlock}
-          onUnlock={unlock}
-        />
+        <View style={{ flex: 1 }}>
+          <LockScreen 
+            status={status}
+            title={response?.title}
+            message={response?.message}
+            contactEmail={response?.contactEmail}
+            contactPhone={response?.contactPhone}
+            contactWhatsapp={response?.contactWhatsapp}
+            allowUnlock={response?.allowUnlock === true}
+            branding={response?.branding}
+            onUnlock={unlock}
+          />
+          <View style={styles.hiddenWhileLocked} pointerEvents="none">
+            {children}
+          </View>
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
           {children}
@@ -539,6 +568,13 @@ export const DevGuardProvider: React.FC<{
 };
 
 const styles = StyleSheet.create({
+  hiddenWhileLocked: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: 'hidden',
+  },
   bugIcon: {
     position: 'absolute',
     right: 20,
@@ -561,3 +597,6 @@ export const useDevGuard = () => {
   if (!context) throw new Error('useDevGuard must be used within a DevGuardProvider');
   return context;
 };
+
+export type { LockScreenBranding } from './types/branding';
+export { resolveBrandingFooter } from './types/branding';

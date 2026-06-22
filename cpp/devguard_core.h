@@ -14,19 +14,21 @@
 extern "C" {
 #endif
 
-// Generates an HMAC-SHA256 signature for a given project ID and timestamp.
-// The secret key is embedded inside the compiled binary.
-// output must be a buffer of at least 65 bytes (64 hex characters + null terminator).
-DEVGUARD_EXPORT void generate_signature(const char* project_id, long long timestamp, char* output);
-
-// Verifies a server response signature against the response body.
-// Returns 1 if valid, 0 if invalid.
-DEVGUARD_EXPORT int verify_response(const char* response_body, const char* signature);
-
-// Secure token scrambling for in-memory protection.
-// output must be a buffer of at least the length of token + 1.
-DEVGUARD_EXPORT void secure_save_token(const char* token, char* output);
-DEVGUARD_EXPORT void secure_get_token(const char* scrambled, char* output);
+DEVGUARD_EXPORT void dg_x9(const char* project_id, long long timestamp, char* output);
+DEVGUARD_EXPORT int dg_v2(const char* response_body, const char* signature);
+DEVGUARD_EXPORT void dg_s3(const char* token, char* output);
+DEVGUARD_EXPORT void dg_g4(const char* scrambled, char* output);
+DEVGUARD_EXPORT void dg_h5(const char* input, char* output);
+DEVGUARD_EXPORT void dg_x6(
+    const char* input,
+    size_t input_len,
+    const char* key,
+    size_t key_len,
+    char* output
+);
+DEVGUARD_EXPORT void dg_d7(const char* passcode, const char* salt, char* output);
+DEVGUARD_EXPORT int dg_r8(void);
+DEVGUARD_EXPORT int dg_e1(int block_emulators, int is_physical, int is_compromised);
 
 #ifdef __cplusplus
 }

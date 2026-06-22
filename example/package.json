@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "start": "react-native start",
     "test": "jest",
+    "setup:local": "node scripts/generate-devguard-local.js",
     "verify:versions": "node -e \"const rn=require('react-native/package.json');const r=require('react/package.json');const p=require('../package.json');console.log(JSON.stringify({plugin:p.version,reactNative:rn.version,react:r.version},null,2));\""
   },
   "dependencies": {
@@ -47,5 +48,9 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "overrides": {
+    "image-size": "2.0.2",
+    "shell-quote": "1.8.4"
   }
 }

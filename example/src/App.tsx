@@ -2,6 +2,8 @@ import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { SafeAreaView, StyleSheet, Text, View, StatusBar, Button, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DevGuardProvider, useDevGuard } from 'react-native-dev-guard';
+import { DEVGUARD_PROJECT_ID, DEVGUARD_SECRET } from './devguard.local';
+import { isPhysicalTestEnabled, PhysicalTestRunner } from './physicalTestRunner';
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -81,7 +83,8 @@ export default function App() {
       <SafeAreaProvider>
         {/* Portal integrations must also pass secret (Settings → Master Secret):
             secret="YOUR_UNIQUE_SECRET" */}
-        <DevGuardProvider projectId="your_project_id" secret="YOUR_MASTER_SECRET" failSafe="open">
+        <DevGuardProvider projectId={DEVGUARD_PROJECT_ID} secret={DEVGUARD_SECRET} failSafe="open">
+          {isPhysicalTestEnabled() ? <PhysicalTestRunner /> : null}
           <AppContent />
         </DevGuardProvider>
       </SafeAreaProvider>

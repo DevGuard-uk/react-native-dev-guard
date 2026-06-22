@@ -2,12 +2,12 @@
 node_modules/
 **/node_modules/
 
-# Build outputs
-lib/
+# Build outputs (lib/ is committed — published npm artifact)
 dist/
 build/
 **/build/
 **/DerivedData/
+**/DGPhysicalDerivedData/
 **/bin/
 **/obj/
 
@@ -24,6 +24,7 @@ build/
 **/.gradle/
 **/.cxx/
 **/build/
+android/.settings/
 android/local.properties
 **/local.properties
 android/GeneratedPluginRegistrant.java
@@ -71,11 +72,8 @@ Desktop.ini
 
 # DevGuard specific
 inspect_pods*.rb
+example/src/devguard.local.ts
+example/src/physicalTest.local.ts
 simulator_screenshot*.png
 xcodebuild*.log
 build_log*.txt
-scratch/
-example/ios/GoogleService-Info.plist
-example/android/app/google-services.json
-**/*serviceAccount*.json
-**/*firebase-adminsdk*.json

@@ -1,5 +1,5 @@
 import * as Keychain from 'react-native-keychain';
-import CryptoJS from 'crypto-js';
+import { decryptCachePayload, encryptCachePayload } from './cacheCrypto';
 
 export class CacheService {
   private static readonly SERVICE_NAME = 'devguard.cache.service';
@@ -8,11 +8,8 @@ export class CacheService {
   static async saveResponse(projectId: string, response: any): Promise<void> {
     try {
       const dataString = JSON.stringify(response);
+      const encrypted = encryptCachePayload(projectId, dataString);
       
-      // Use projectId as the encryption key for the payload
-      const encrypted = CryptoJS.AES.encrypt(dataString, projectId).toString();
-      
-      // Store in secure keychain
       await Keychain.setGenericPassword(
         `devguard_${projectId}`, 
         encrypted, 
@@ -28,12 +25,7 @@ export class CacheService {
       const credentials = await Keychain.getGenericPassword({ service: this.SERVICE_NAME });
       
       if (credentials && credentials.username === `devguard_${projectId}`) {
-        const encrypted = credentials.password;
-        
-        // Decrypt using projectId
-        const bytes = CryptoJS.AES.decrypt(encrypted, projectId);
-        const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-        
+        const decrypted = decryptCachePayload(projectId, credentials.password);
         if (decrypted) {
           return JSON.parse(decrypted);
         }

@@ -17,6 +17,7 @@ class DevGuardModule(reactContext: ReactApplicationContext) : ReactContextBaseJa
 
     private external fun generateSignatureNative(projectId: String, timestamp: Long): String
     private external fun verifyResponseNative(responseBody: String, signature: String): Boolean
+    private external fun evaluatePolicyNative(blockEmulators: Int, isPhysical: Int, isCompromised: Int): Int
 
     @ReactMethod
     fun generateSignature(projectId: String, timestamp: Double, promise: Promise) {
@@ -35,6 +36,20 @@ class DevGuardModule(reactContext: ReactApplicationContext) : ReactContextBaseJa
             promise.resolve(isValid)
         } catch (e: Exception) {
             promise.reject("DEVGUARD_ERROR", "Failed to verify response", e)
+        }
+    }
+
+    @ReactMethod
+    fun evaluatePolicy(blockEmulators: Boolean, isPhysical: Boolean, isCompromised: Boolean, promise: Promise) {
+        try {
+            val code = evaluatePolicyNative(
+                if (blockEmulators) 1 else 0,
+                if (isPhysical) 1 else 0,
+                if (isCompromised) 1 else 0,
+            )
+            promise.resolve(code)
+        } catch (e: Exception) {
+            promise.reject("DEVGUARD_ERROR", "Failed to evaluate policy", e)
         }
     }
 }
