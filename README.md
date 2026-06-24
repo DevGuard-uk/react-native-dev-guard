@@ -228,4 +228,4 @@ To view telemetry and logs directly inside the running app without connecting a 
 MIT © [DevGuard](https://devguard.uk)
 
 ---
-*Secure by Design. Managed by You.*
+*Secure by Design. Managed by Ants Solution.*

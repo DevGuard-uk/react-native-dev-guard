@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-06-25
+
+### Changed
+- Example app documents Node.js 22+ as the minimum for local development.
+
 ## [1.0.1] - 2026-06-22
 
 ### Added
