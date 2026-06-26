@@ -1,5 +1,6 @@
 import CryptoJS from 'crypto-js';
 import { CrashLogService, CrashLogModel } from 'react-native-vault-logger';
+import { PluginCrashReporter } from './PluginCrashReporter';
 
 function deriveVaultKeyMaterial(deviceId: string, salt: string): string {
   const hex = CryptoJS.SHA256(`${deviceId}_${salt}`).toString(CryptoJS.enc.Hex);
@@ -45,6 +46,11 @@ export class DevGuardLogger {
     const message = error?.message || String(error);
     this._log(message, 'ERROR', { context });
     CrashLogService.logError(error, { context: context || 'ERROR' });
+    void PluginCrashReporter.report({
+      error,
+      context,
+      crashType: 'vault_error',
+    });
   }
 
   static debug(message: string, data?: Record<string, any>) {

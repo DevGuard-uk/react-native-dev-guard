@@ -5,6 +5,7 @@ import CryptoJS from 'crypto-js';
 
 import { UsageLogger } from './UsageLogger';
 import { DeviceTokenService } from './DeviceTokenService';
+import { SDK_RUNTIME, SDK_VERSION } from '../constants/sdkIdentity';
 
 export class HardwareService {
   private static instance: HardwareService;
@@ -114,7 +115,12 @@ export class HardwareService {
       brand: DeviceInfo.getBrand(),
       os: os,
       osVersion: Platform.Version,
+      platform: Platform.OS,
       version: DeviceInfo.getVersion(),
+      sdkRuntime: SDK_RUNTIME,
+      sdkVersion: SDK_VERSION,
+      hostPlatform: Platform.OS,
+      hostPlatformVersion: String(Platform.Version),
       bundleId: DeviceInfo.getBundleId(),
       isTablet: DeviceInfo.isTablet(),
       isEmulator: isEmulator,

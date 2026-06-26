@@ -53,3 +53,4 @@ export declare const DevGuardProvider: React.FC<{
 export declare const useDevGuard: () => DevGuardContextType;
 export type { LockScreenBranding } from './types/branding';
 export { resolveBrandingFooter } from './types/branding';
+export { PluginCrashReporter } from './services/PluginCrashReporter';

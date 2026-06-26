@@ -305,6 +305,88 @@ DEVGUARD_EXPORT int dg_r8(void) {
 }
 #endif
 
+// --- Status URL (obfuscated default + devguard.uk host gate) ---
+
+static char _tolower_char(char c) {
+    if (c >= 'A' && c <= 'Z') return (char)(c + 32);
+    return c;
+}
+
+static int _strcasecmp_ascii(const char* a, const char* b) {
+    while (*a && *b) {
+        char ca = _tolower_char(*a);
+        char cb = _tolower_char(*b);
+        if (ca != cb) return ca - cb;
+        a++;
+        b++;
+    }
+    return _tolower_char(*a) - _tolower_char(*b);
+}
+
+static void _reconstruct_allowed_host_suffix(char* out) {
+    static const uint8_t _k[] = {
+        0x26, 0xff, 0x48, 0x16, 0xc7, 0x2d, 0x9a, 0x7d, 0x43, 0x5f, 0x74
+    };
+    static const uint8_t _m[] = {
+        0x42, 0x9a, 0x3e, 0x71, 0xb2, 0x4c, 0xe8, 0x19, 0x6d, 0x2a, 0x1f
+    };
+    for (int i = 0; i < 11; i++) out[i] = (char)(_k[i] ^ _m[i]);
+    out[11] = '\0';
+}
+
+static void _reconstruct_api_url(char* out) {
+    static const uint8_t _k1[] = {0xcb, 0x0b, 0x6f, 0x92, 0xe7, 0x6c, 0xf7, 0x13};
+    static const uint8_t _m1[] = {0xa3, 0x7f, 0x1b, 0xe2, 0x94, 0x56, 0xd8, 0x3c};
+    static const uint8_t _k2[] = {0x3c, 0xb1, 0xe3, 0x19, 0x92, 0x4b, 0xc3, 0x2e};
+    static const uint8_t _m2[] = {0x5d, 0xc1, 0x8a, 0x37, 0xf6, 0x2e, 0xb5, 0x49};
+    static const uint8_t _k3[] = {0x04, 0x89, 0x3f, 0xfb, 0x4d, 0xdf, 0x77, 0xfd};
+    static const uint8_t _m3[] = {0x71, 0xe8, 0x4d, 0x9f, 0x63, 0xaa, 0x1c, 0xd2};
+    static const uint8_t _k4[] = {0xec, 0x5e, 0x82, 0x70, 0xbc, 0x0f, 0xd3, 0x31};
+    static const uint8_t _m4[] = {0x88, 0x3b, 0xf4, 0x17, 0xc9, 0x6e, 0xa1, 0x55};
+    int pos = 0;
+    for (int i = 0; i < 8; i++) out[pos++] = (char)(_k1[i] ^ _m1[i]);
+    for (int i = 0; i < 8; i++) out[pos++] = (char)(_k2[i] ^ _m2[i]);
+    for (int i = 0; i < 8; i++) out[pos++] = (char)(_k3[i] ^ _m3[i]);
+    for (int i = 0; i < 8; i++) out[pos++] = (char)(_k4[i] ^ _m4[i]);
+    out[pos] = '\0';
+}
+
+static int _host_ends_with_suffix(const char* host, const char* suffix) {
+    size_t host_len = strlen(host);
+    size_t suffix_len = strlen(suffix);
+    if (host_len < suffix_len) return 0;
+    const char* host_suffix = host + host_len - suffix_len;
+    if (_strcasecmp_ascii(host_suffix, suffix) != 0) return 0;
+    if (host_len == suffix_len) return 1;
+    if (host[host_len - suffix_len - 1] == '.') return 1;
+    return 0;
+}
+
+DEVGUARD_EXPORT void dg_u1(char* output) {
+    if (output == NULL) return;
+    _reconstruct_api_url(output);
+}
+
+DEVGUARD_EXPORT int dg_u2(const char* url) {
+    if (url == NULL) return 0;
+    if (strncmp(url, "https://", 8) != 0) return 0;
+
+    const char* host_start = url + 8;
+    const char* slash = strchr(host_start, '/');
+    if (slash == NULL) return 0;
+
+    size_t host_len = (size_t)(slash - host_start);
+    if (host_len == 0 || host_len > 253) return 0;
+
+    char host[254];
+    memcpy(host, host_start, host_len);
+    host[host_len] = '\0';
+
+    char suffix[16];
+    _reconstruct_allowed_host_suffix(suffix);
+    return _host_ends_with_suffix(host, suffix);
+}
+
 // Policy gate: 0=allow, 1=emulator block, 2=compromised device block
 DEVGUARD_EXPORT int dg_e1(int block_emulators, int is_physical, int is_compromised) {
     if (is_compromised) {

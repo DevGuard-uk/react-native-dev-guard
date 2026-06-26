@@ -143,6 +143,11 @@ export function PhysicalTestRunner() {
   isLockedRef.current = isLocked;
   expectedRef.current = expectedScenario;
 
+  const verifyRef = useRef(verify);
+  const setDeviceUserRef = useRef(setDeviceUser);
+  verifyRef.current = verify;
+  setDeviceUserRef.current = setDeviceUser;
+
   useEffect(() => {
     if (!SYNC_URL) return undefined;
     DeviceInfo.getUniqueId().then((id) => {
@@ -163,7 +168,7 @@ export function PhysicalTestRunner() {
       verifyInFlightRef.current = true;
       lastVerifyAtRef.current = Date.now();
       try {
-        await verify(true);
+        await verifyRef.current(true);
       } finally {
         verifyInFlightRef.current = false;
       }
@@ -194,27 +199,45 @@ export function PhysicalTestRunner() {
           console.log(
             `PHYSICAL_TEST_WAIT:${expected} status=${currentStatus} rs=${currentResponse.status} msg=${currentResponse.message} allowUnlock=${String(currentResponse.allowUnlock)} isLocked=${locked}`,
           );
+          // Flutter integration test polls up to ~60s — bypass verify debounce for lock transitions.
+          for (let attempt = 0; attempt < 30; attempt += 1) {
+            lastVerifyAtRef.current = 0;
+            verifyInFlightRef.current = false;
+            await verifyRef.current(true);
+            await new Promise((r) => setTimeout(r, 2000));
+            const st = statusRef.current;
+            const rs = responseRef.current as Record<string, any> | null;
+            if (rs && scenarioSatisfied(expected, st, rs, isLockedRef.current)) {
+              break;
+            }
+          }
+        } else {
+          await runVerify();
         }
-        await runVerify();
         return;
       }
 
+      // Guard before notifySync — two interval ticks can both satisfy the same
+      // scenario and double-advance the host sync server (skipping warning patch).
+      if (busyRef.current || completedRef.current.has(expected)) {
+        return;
+      }
+      busyRef.current = true;
+
       if (expected === 'end_user_identity' && !identitySetRef.current) {
         identitySetRef.current = true;
-        busyRef.current = true;
         try {
-          await setDeviceUser('example_user', 'rn@example.com', '+1987654321', {
+          await setDeviceUserRef.current('example_user', 'rn@example.com', '+1987654321', {
             framework: 'react-native',
           });
           lastVerifyAtRef.current = 0;
-          await verify(true);
+          await verifyRef.current(true);
         } finally {
           busyRef.current = false;
         }
         return;
       }
 
-      busyRef.current = true;
       let next = '';
       try {
         const deviceId = deviceIdRef.current || (await DeviceInfo.getUniqueId());
@@ -261,9 +284,9 @@ export function PhysicalTestRunner() {
       // Settlement verify runs outside busyRef so the next scenario can tick while API catches up.
       lastVerifyAtRef.current = 0;
       await new Promise((r) => setTimeout(r, 800));
-      await verify(true);
+      await verifyRef.current(true);
       await new Promise((r) => setTimeout(r, 2500));
-      await verify(true);
+      await verifyRef.current(true);
     };
 
     const id = setInterval(() => {
@@ -274,7 +297,7 @@ export function PhysicalTestRunner() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [verify, setDeviceUser]);
+  }, []);
 
   return null;
 }

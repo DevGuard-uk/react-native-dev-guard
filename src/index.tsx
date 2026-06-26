@@ -12,10 +12,13 @@ import Jailbreak from 'react-native-jailbreak';
 import { CacheService } from './services/CacheService';
 import { DiagnosticOverlay } from './components/DiagnosticOverlay';
 import { DevGuardLogger } from './services/DevGuardLogger';
+import { PluginCrashReporter } from './services/PluginCrashReporter';
 import { GuardEnforcement } from './services/GuardEnforcement';
 import { RemoteWipeService } from './services/RemoteWipeService';
 import { LockScreenBranding } from './types/branding';
 import { Obf } from './internal/obf';
+import { resolveStatusUrl } from './utils/statusUrlResolver';
+import { buildDevGuardAuthHeaders } from './utils/secureDevGuardRequest';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 const { DevGuard: DevGuardNative } = NativeModules;
@@ -216,16 +219,16 @@ export const DevGuardProvider: React.FC<{
 
       const signature = await DevGuardNative.generateSignature(projectId, parseInt(timestamp, 10));
 
-      const fetchUrl = Obf.defaultApiUrl;
+      const fetchUrl = resolveStatusUrl(Obf.defaultApiUrl);
       const fetchOptions = {
         method: 'POST',
-        headers: {
-          [Obf.contentType]: Obf.appJson,
-          [Obf.hdrSig]: signature,
-          [Obf.hdrTs]: timestamp,
-          [Obf.hdrTunnel]: Obf.tunnelV1,
-          ...(authSecret ? { [Obf.hdrApiKey]: authSecret } : {})
-        },
+        headers: buildDevGuardAuthHeaders({
+          url: fetchUrl,
+          secret: authSecret,
+          signature,
+          timestamp,
+          includeTunnel: true,
+        }),
         body: JSON.stringify({ 
           [Obf.projectId]: projectId,
           [Obf.deviceId]: metadata.deviceId,
@@ -246,8 +249,17 @@ export const DevGuardProvider: React.FC<{
       };
       
       
-      
-      const fetchResponse = await fetch(fetchUrl, fetchOptions);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 50_000);
+      let fetchResponse: Response;
+      try {
+        fetchResponse = await fetch(fetchUrl, {
+          ...fetchOptions,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!fetchResponse.ok) {
         throw new Error(Obf.apiUnreachable);
@@ -260,7 +272,13 @@ export const DevGuardProvider: React.FC<{
       const responseSig = fetchResponse.headers.get(Obf.respSig);
 
       if (responseSig) {
-        const isValid = await DevGuardNative.verifyResponse(responseText, responseSig);
+        let isValid = false;
+        try {
+          isValid = await DevGuardNative.verifyResponse(responseText, responseSig);
+        } catch (nativeErr) {
+          console.warn('DevGuard: Native response signature check failed', nativeErr);
+          isValid = false;
+        }
         if (!isValid) {
           if (result[Obf.betaFeatures]?.[Obf.bypassSignature] === true) {
             console.warn(Obf.invalidSigBypassLog);
@@ -406,14 +424,15 @@ export const DevGuardProvider: React.FC<{
 
       const payload = JSON.stringify({ [Obf.projectId]: projectId, [Obf.providedKey]: hashedKey });
 
-      const fetchResponse = await fetch(`${Obf.defaultApiUrl}${Obf.unlockPath}`, {
+      const unlockUrl = resolveStatusUrl(`${Obf.defaultApiUrl}${Obf.unlockPath}`);
+      const fetchResponse = await fetch(unlockUrl, {
         method: 'POST',
-        headers: {
-          [Obf.contentType]: Obf.appJson,
-          [Obf.hdrSig]: signature,
-          [Obf.hdrTs]: timestamp,
-          ...(authSecret ? { [Obf.hdrApiKey]: authSecret } : {})
-        },
+        headers: buildDevGuardAuthHeaders({
+          url: unlockUrl,
+          secret: authSecret,
+          signature,
+          timestamp,
+        }),
         body: payload
       });
 
@@ -449,7 +468,16 @@ export const DevGuardProvider: React.FC<{
     // Run heavy operations safely in the background JS event loop
     setTimeout(async () => {
       try {
-        const deviceId = await HardwareService.getInstance().getDeviceId();
+        const hardware = HardwareService.getInstance();
+        PluginCrashReporter.configure({
+          projectId,
+          secret: authSecret,
+          baseUrl: resolveStatusUrl(Obf.defaultApiUrl),
+          metadataProvider: async () =>
+            hardware.getMetadata(responseRef.current?.betaFeatures),
+        });
+
+        const deviceId = await hardware.getDeviceId();
         await DevGuardLogger.init(deviceId);
         
         const isJailbroken = await Jailbreak.check();
@@ -600,3 +628,4 @@ export const useDevGuard = () => {
 
 export type { LockScreenBranding } from './types/branding';
 export { resolveBrandingFooter } from './types/branding';
+export { PluginCrashReporter } from './services/PluginCrashReporter';

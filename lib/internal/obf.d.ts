@@ -9,6 +9,8 @@ export declare const Obf: {
     readonly symD7: string;
     readonly symR8: string;
     readonly symE1: string;
+    readonly symU1: string;
+    readonly symU2: string;
     readonly contentType: string;
     readonly appJson: string;
     readonly hdrSig: string;
@@ -36,6 +38,8 @@ export declare const Obf: {
     readonly providedKey: string;
     readonly unlocked: string;
     readonly defaultApiUrl: string;
+    readonly allowedApiHostSuffix: string;
+    readonly invalidStatusUrlLog: string;
     readonly betaFeatures: string;
     readonly bypassSignature: string;
     readonly statusField: string;
