@@ -1,4 +1,5 @@
 import React from 'react';
+import { UserLogInput } from './services/UserLogBuffer';
 import { LockScreenBranding } from './types/branding';
 export type GuardStatus = 'LOCKED' | 'ACTIVE' | 'PENDING' | 'ERROR' | 'EXPIRED' | 'WARNING';
 interface GuardResponse {
@@ -35,6 +36,7 @@ interface DevGuardContextType {
     verify: () => Promise<void>;
     unlock: (key: string) => Promise<boolean>;
     setDeviceUser: (username?: string, email?: string, phone?: string, customData?: Record<string, any>) => Promise<void>;
+    setUserLog: (input: UserLogInput) => Promise<void>;
     isLocked: boolean;
     response: GuardResponse | null;
 }
@@ -47,6 +49,7 @@ export declare const DevGuardProvider: React.FC<{
     secret?: string;
     /** @deprecated Use `secret` (Settings → Master Secret) instead. */
     apiKey?: string;
+    statusUrl?: string;
     autoProtect?: boolean;
     failSafe?: FailSafe;
 }>;
@@ -54,3 +57,4 @@ export declare const useDevGuard: () => DevGuardContextType;
 export type { LockScreenBranding } from './types/branding';
 export { resolveBrandingFooter } from './types/branding';
 export { PluginCrashReporter } from './services/PluginCrashReporter';
+export type { UserLogInput, UserLogAction, UserLogEvent } from './services/UserLogBuffer';

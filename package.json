@@ -35,7 +35,7 @@
     "build:ts": "npm run gen:obf && tsc",
     "build:obfuscate": "echo 'Skipping obfuscator for RN bundle compat'",
     "build": "npm-run-all clean build:ts build:obfuscate",
-    "test": "npm run build && node --test test/branding.test.js test/obf.test.js",
+    "test": "npm run build && node --test test/branding.test.js test/obf.test.js test/statusUrlResolver.test.js",
     "prepublishOnly": "npm run build",
     "verify:versions": "node -e \"const rn=require('react-native/package.json');const r=require('react/package.json');console.log('react-native',rn.version,'react',r.version);\""
   },

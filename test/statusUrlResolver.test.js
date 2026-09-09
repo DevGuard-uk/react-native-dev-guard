@@ -18,8 +18,24 @@ describe('resolveStatusUrl', () => {
     );
   });
 
+  it('accepts loopback HTTP for USB adb reverse / emulator local API', () => {
+    assert.equal(
+      resolveStatusUrl('http://127.0.0.1:3000/devguard'),
+      'http://127.0.0.1:3000/devguard',
+    );
+    assert.equal(
+      resolveStatusUrl('http://localhost:3000/devguard'),
+      'http://localhost:3000/devguard',
+    );
+    assert.equal(
+      resolveStatusUrl('http://10.0.2.2:3000/devguard'),
+      'http://10.0.2.2:3000/devguard',
+    );
+  });
+
   it('rejects non-HTTPS and off-domain endpoints', () => {
     assert.throws(() => resolveStatusUrl('http://api.devguard.uk/devguard'));
     assert.throws(() => resolveStatusUrl('https://evil.example.com/devguard'));
+    assert.throws(() => resolveStatusUrl('http://127.0.0.1.evil.example/devguard'));
   });
 });

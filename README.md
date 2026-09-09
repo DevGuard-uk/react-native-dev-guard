@@ -1,7 +1,14 @@
 # React Native DevGuard
 
 <p align="center">
+  <a href="https://devguard.uk">
+    <img src="assets/logo.png" alt="DevGuard" width="120" height="120" />
+  </a>
+</p>
+
+<p align="center">
   <a href="https://devguard.uk"><img src="https://img.shields.io/badge/website-devguard.uk-6C47FF?style=flat-square" alt="Website" /></a>
+  <a href="https://github.com/DevGuard-uk/react-native-dev-guard"><img src="https://img.shields.io/badge/github-DevGuard--uk-181717?style=flat-square" alt="GitHub" /></a>
   <img src="https://img.shields.io/badge/platforms-iOS%20%7C%20Android-2D7DD2?style=flat-square" alt="Platforms" />
   <img src="https://img.shields.io/badge/license-MIT-3CB371?style=flat-square" alt="License" />
 </p>
@@ -39,6 +46,7 @@ The Lock Screen, warning toast, and diagnostics overlay are all **built in** —
 - **Emulator Blocking**: When the project enables `blockEmulators`, the SDK locks on emulators/simulators automatically.
 - **Hardened Remote Wipe**: Nonce-based remote wipe clears the response cache, usage logs, local diagnostic vault, and stored device-user identity.
 - **Privacy-Gated Telemetry**: Advanced metrics (RAM, storage, battery, network) are only collected after the server enables `advancedTelemetry`.
+- **User Journey**: Optional `setUserLog` steps reconstruct screens/widgets in the Developer Portal (when the plan entitles User Journey).
 
 ## 🚀 Getting Started
 
@@ -106,7 +114,7 @@ DevGuard syncs on app launch, on foreground/background, and on a server-defined 
 | `WARNING` | App still works, but a notice is shown. | A non-blocking toast (e.g. *"Payment reminder"*). |
 | `LOCKED` | Access revoked by you. | The built-in **Lock Screen** (when `autoProtect`). |
 | `EXPIRED` | License expired. | Treated as locked. |
-| `PENDING` | Initial state before the first successful sync (`failSafe: open`). | Your app (optimistic). |
+| `PENDING` | Initial state before the first successful sync (`failSafe: open`). | Your app (optimistic). No built-in connecting splash from the SDK — optional host UI when `status === 'PENDING'` (see `example/`). |
 | `ERROR` | Sync failed. | Depends on `failSafe` (see below). |
 
 ## 🪝 API
@@ -146,6 +154,7 @@ const MyComponent = () => {
 | `verify` | `(force?: boolean) => Promise<void>` | Manually trigger a license sync. |
 | `unlock` | `(key: string) => Promise<boolean>` | Submit an unlock key; resolves `true` on success. |
 | `setDeviceUser` | `(username?, email?, phone?, customData?) => Promise<void>` | Register the signed-in app user so they appear in the Developer Portal. |
+| `setUserLog` | `(input) => Promise<void>` | Record a compact UI step for the User Journey tab (plan-gated upload). |
 
 ### Track app users in the Developer Portal
 
@@ -165,6 +174,21 @@ await setDeviceUser(
 ```
 
 Open **Developer Portal → Users** to view your app's user base and engagement.
+
+### User Journey (optional)
+
+```tsx
+const { setUserLog } = useDevGuard();
+
+await setUserLog({
+  screen: 'cart-page',
+  widget: 'CheckoutCTA',
+  className: 'CartScreen',
+  action: 'view',
+});
+```
+
+Steps upload on the next heartbeat only when the org plan includes **User Journey**. View them in **Developer Portal → User Journey**.
 
 ### Manual verification
 

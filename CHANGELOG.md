@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- **User Journey** (`setUserLog` via `useDevGuard`): optional compact UI-step trail for Developer Portal and Console. Uploaded on heartbeat only when the project plan includes User Journey.
+
+### Changed
+- Lifecycle debounce expands from 5 to 10 minutes when the device is in power-saver mode or battery is below 20% while discharging.
+
 ## [1.0.3] - 2026-06-26
 
 ### Security

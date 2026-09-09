@@ -5420,7 +5420,7 @@ react-is@^19.2.3:
   integrity sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==
 
 react-native-dev-guard@..:
-  version "1.0.0"
+  version "1.0.3"
   resolved "file:.."
   dependencies:
     crypto-js "^4.2.0"

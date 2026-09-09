@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 
@@ -12,6 +13,16 @@ const peerBlockList = peerModules.map(
   (name) => new RegExp(`^${escape(path.join(root, 'node_modules', name))}[\\\\/].*`)
 );
 
+// SDK dependencies (not peers) that must resolve from the example app — avoids duplicate
+// native view registration (e.g. RNCSafeAreaView when telemetry diagnostics shows bug icon).
+const sdkDedupeModules = [
+  '@react-native-async-storage/async-storage',
+  'react-native-safe-area-context',
+];
+const sdkDedupeBlockList = sdkDedupeModules.map(
+  (name) => new RegExp(`^${escape(path.join(root, 'node_modules', name))}[\\\\/].*`)
+);
+
 /**
  * Metro configuration for monorepo-style local plugin development.
  * https://reactnative.dev/docs/metro
@@ -21,17 +32,23 @@ const peerBlockList = peerModules.map(
 const config = {
   watchFolders: [root],
   resolver: {
-    blockList: peerBlockList.concat(defaultConfig.resolver.blockList),
+    blockList: peerBlockList.concat(sdkDedupeBlockList).concat(defaultConfig.resolver.blockList),
     extraNodeModules: peerModules.reduce((acc, name) => {
       acc[name] = path.join(__dirname, 'node_modules', name);
       return acc;
     }, {
-      'react-native-vault-logger': path.join(root, 'node_modules', 'react-native-vault-logger'),
-      // vault-logger pulls async-storage 1.x from the plugin root; iOS pods are 3.x — must match JS to native.
+      'react-native-vault-logger': fs.existsSync(path.join(root, 'node_modules', 'react-native-vault-logger'))
+        ? path.join(root, 'node_modules', 'react-native-vault-logger')
+        : path.join(__dirname, 'node_modules', 'react-native-vault-logger'),
       '@react-native-async-storage/async-storage': path.join(
         __dirname,
         'node_modules',
         '@react-native-async-storage/async-storage'
+      ),
+      'react-native-safe-area-context': path.join(
+        __dirname,
+        'node_modules',
+        'react-native-safe-area-context'
       ),
     }),
     nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],

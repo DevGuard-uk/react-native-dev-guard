@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if _WIN32
 #define DEVGUARD_EXPORT __declspec(dllexport)
 #else
@@ -27,5 +31,9 @@ DEVGUARD_EXPORT int dg_r8(void);
 DEVGUARD_EXPORT int dg_e1(int block_emulators, int is_physical, int is_compromised);
 DEVGUARD_EXPORT void dg_u1(char* output);
 DEVGUARD_EXPORT int dg_u2(const char* url);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // DEVGUARD_CORE_H

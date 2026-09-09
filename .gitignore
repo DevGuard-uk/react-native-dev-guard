@@ -74,6 +74,7 @@ Desktop.ini
 inspect_pods*.rb
 example/src/devguard.local.ts
 example/src/physicalTest.local.ts
+example/src/.physical-test-owner
 simulator_screenshot*.png
 xcodebuild*.log
 build_log*.txt
