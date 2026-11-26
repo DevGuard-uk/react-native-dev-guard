@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.0.4] - 2026-11-26
 
 ### Added
 - **Root / jailbreak policy** (`rootPolicy`): heartbeat-driven `warn` (default banner) or `block` (lock) when the device is compromised. Emulator blocking via project settings is unchanged.
