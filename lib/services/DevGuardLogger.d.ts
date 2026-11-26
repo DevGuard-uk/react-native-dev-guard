@@ -3,6 +3,7 @@ export declare class DevGuardLogger {
     static showConsoleLogs: boolean;
     private static initialized;
     private static infoLogs;
+    private static appVersion;
     static init(deviceId: string): Promise<void>;
     static enableConsoleLogs(): void;
     static info(message: string, data?: Record<string, any>): void;

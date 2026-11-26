@@ -6,15 +6,18 @@ buildscript {
 
     dependencies {
         classpath "com.android.tools.build:gradle:8.9.2"
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.20"
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.0"
     }
 }
 
 apply plugin: "com.android.library"
-apply plugin: "kotlin-android"
+// AGP 9 enables built-in Kotlin by default; only apply kotlin-android when needed.
+if (project.extensions.findByName("kotlin") == null) {
+    apply plugin: "kotlin-android"
+}
 
 android {
-    compileSdkVersion 36
+    compileSdkVersion 37
     namespace "com.devguard"
 
     defaultConfig {
@@ -43,5 +46,5 @@ repositories {
 
 dependencies {
     implementation "com.facebook.react:react-native:+"
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.1.20"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.2.0"
 }

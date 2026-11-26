@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserLogInput } from './services/UserLogBuffer';
+import { DiagnosticBatchResult } from './services/DiagnosticBatchService';
 import { LockScreenBranding } from './types/branding';
 export type GuardStatus = 'LOCKED' | 'ACTIVE' | 'PENDING' | 'ERROR' | 'EXPIRED' | 'WARNING';
 interface GuardResponse {
@@ -29,6 +30,8 @@ interface GuardResponse {
     syncPolicy?: SyncPolicy;
     /** When true, the client locks on emulators/simulators (non-physical devices). */
     blockEmulators?: boolean;
+    /** Root/jailbreak policy: `warn` (default) or `block`. */
+    rootPolicy?: 'warn' | 'block';
     branding?: LockScreenBranding | null;
 }
 interface DevGuardContextType {
@@ -37,6 +40,11 @@ interface DevGuardContextType {
     unlock: (key: string) => Promise<boolean>;
     setDeviceUser: (username?: string, email?: string, phone?: string, customData?: Record<string, any>) => Promise<void>;
     setUserLog: (input: UserLogInput) => Promise<void>;
+    uploadRawVault: (triggerSource?: string) => Promise<boolean>;
+    flushDiagnosticBatch: (options?: {
+        maxRecords?: number;
+        maxBytes?: number;
+    }) => Promise<DiagnosticBatchResult>;
     isLocked: boolean;
     response: GuardResponse | null;
 }
@@ -47,7 +55,9 @@ export declare const DevGuardProvider: React.FC<{
     projectId: string;
     /** Your account Master Secret (Settings → Master Secret). */
     secret?: string;
-    /** @deprecated Use `secret` (Settings → Master Secret) instead. */
+    /** Preferred per-project ingest key (Portal → Project SDK key). */
+    sdkKey?: string;
+    /** @deprecated Use `secret` or `sdkKey` instead. */
     apiKey?: string;
     statusUrl?: string;
     autoProtect?: boolean;
@@ -58,3 +68,7 @@ export type { LockScreenBranding } from './types/branding';
 export { resolveBrandingFooter } from './types/branding';
 export { PluginCrashReporter } from './services/PluginCrashReporter';
 export type { UserLogInput, UserLogAction, UserLogEvent } from './services/UserLogBuffer';
+export { DiagnosticBatchService } from './services/DiagnosticBatchService';
+export type { DiagnosticBatchResult } from './services/DiagnosticBatchService';
+export { DiagnosticOutbox } from './services/DiagnosticOutbox';
+export type { DiagnosticRecord } from './services/DiagnosticOutbox';

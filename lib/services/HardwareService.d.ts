@@ -5,16 +5,16 @@ export declare class HardwareService {
     private constructor();
     static getInstance(): HardwareService;
     getDeviceId(): Promise<string>;
+    setDeviceUser(username?: string, email?: string, phone?: string, customData?: Record<string, any>): Promise<void>;
     /** Records a User Journey UI step. Never throws; empty screen is ignored. */
     setUserLog(input: UserLogInput): Promise<void>;
-    setDeviceUser(username?: string, email?: string, phone?: string, customData?: Record<string, any>): Promise<void>;
     /**
      * Clears all stored device-user identity (username/email/phone/customData).
      * Used by the hardened remote wipe (parity with Flutter's
      * SecureStorageService.deleteAllDeviceUserKeys).
      */
     clearDeviceUser(): Promise<void>;
-    getMetadata(betaFeatures?: any, isHeartbeat?: boolean): Promise<any>;
+    getMetadata(betaFeatures?: any, isHeartbeat?: boolean, forceLogs?: boolean): Promise<any>;
     private getNetworkType;
     /**
      * Collects advanced hardware telemetry as FLAT string fields, matching the

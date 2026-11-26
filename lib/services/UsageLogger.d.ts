@@ -1,4 +1,5 @@
 export interface UsageEvent {
+    clientRecordId?: string;
     type: string;
     timestamp: string;
     data?: any;

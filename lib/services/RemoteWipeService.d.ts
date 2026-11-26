@@ -8,6 +8,7 @@ export declare class RemoteWipeService {
      * Clears local security state:
      * - cached server response,
      * - buffered usage logs,
+     * - buffered user journey logs,
      * - encrypted vault diagnostics (info + errors),
      * - stored device-user identity (username/email/phone/customData).
      *

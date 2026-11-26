@@ -64,12 +64,12 @@ npm install react-native-dev-guard react-native-device-info react-native-keychai
 yarn add react-native-dev-guard react-native-device-info react-native-keychain @react-native-async-storage/async-storage
 ```
 
-`@react-native-async-storage/async-storage` is required by the bundled Vault Logger (local diagnostic logs). Use **v3.x** with React Native 0.85+; run `npx pod-install` after adding it on iOS.
+`@react-native-async-storage/async-storage` is required by the bundled Vault Logger (local diagnostic logs). Use **v3.x** with React Native 0.87+; run `npx pod-install` after adding it on iOS.
 
 ### 3. Native setup
 
 #### Requirements
-- **React Native** `0.85.x` (tested on `0.85.3`)
+- **React Native** `0.87.x` (tested on `0.87.1`)
 - **React** `19.2.x`
 - **iOS** 15.1+ · **Android** minSdk 24
 
@@ -78,7 +78,7 @@ yarn add react-native-dev-guard react-native-device-info react-native-keychain @
 2. Run `npx pod-install`.
 
 #### Android
-Ensure your app `minSdkVersion` is at least **24** (matches the RN 0.85 template).
+Ensure your app `minSdkVersion` is at least **24** (matches the RN 0.87 template).
 
 ### 4. Protect your app
 
